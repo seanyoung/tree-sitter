@@ -13,5 +13,7 @@
   ["python","v0.23.6", null],
   ["ruby","v0.23.1", null],
   ["rust","v0.24.0", null],
+  ["scala","v0.26.2", null],
+  ["solidity","v1.2.13", null],
   ["typescript","v0.23.2", null]
 ]

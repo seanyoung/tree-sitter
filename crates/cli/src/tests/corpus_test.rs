@@ -17,7 +17,7 @@ use crate::{
         random::Rand,
     },
     parse::perform_edit,
-    test::{DiffKey, TestDiff, parse_tests, render_test_output},
+    test::{DiffKey, TestDiff, TestExpectation, parse_tests, render_test_output},
     tests::{
         allocations,
         helpers::fixtures::{SCRATCH_BASE_DIR, fixtures_dir, get_language, get_test_language},
@@ -106,6 +106,29 @@ fn test_corpus_for_rust_language(seed: usize) {
 }
 
 #[test_with_seed(retry=10, seed=*START_SEED, seed_fn=new_seed)]
+fn test_corpus_for_scala_language(seed: usize) {
+    test_language_corpus(
+        "scala",
+        seed,
+        Some(&[
+            // The corpus's own recorded `:error` expectation
+            // (`(compilation_unit (ERROR (UNEXPECTED '?')))`) doesn't match
+            // what this grammar actually produces for it, even outside any
+            // fuzzing/incremental editing — an upstream corpus/grammar
+            // mismatch in tree-sitter-scala's own `v0.26.2` fixture, not
+            // anything specific to this crate's parsing.
+            "scala - corpus - definitions - Reserved keywords",
+        ]),
+        None,
+    );
+}
+
+#[test_with_seed(retry=10, seed=*START_SEED, seed_fn=new_seed)]
+fn test_corpus_for_solidity_language(seed: usize) {
+    test_language_corpus("solidity", seed, None, None);
+}
+
+#[test_with_seed(retry=10, seed=*START_SEED, seed_fn=new_seed)]
 fn test_corpus_for_typescript_language(seed: usize) {
     test_language_corpus("typescript", seed, None, Some("typescript"));
 }
@@ -186,6 +209,15 @@ pub fn test_language_corpus(
     println!();
     for (test_index, test) in tests.iter().enumerate() {
         let test_name = format!("{language_name} - {}", test.name);
+        // `flatten_tests` passes `:skip`-attributed corpus entries through
+        // unfiltered (see its own doc comment / `fuzz.rs`) — every caller is
+        // responsible for honoring `TestExpectation::Skip` itself. This is
+        // separate from the `skipped` param below, which is this function's
+        // own *extra* skip list (by name, not from the corpus file).
+        if test.expectation == TestExpectation::Skip {
+            println!("  {test_index}. {test_name} - SKIPPED (:skip in corpus)");
+            continue;
+        }
         if let Some(skipped) = skipped.as_mut()
             && let Some(counter) = skipped.get_mut(test_name.as_str())
         {
