@@ -1248,3 +1248,27 @@ fn parse_json_example() -> Tree {
     parser.set_language(&get_language("json")).unwrap();
     parser.parse(JSON_EXAMPLE, None).unwrap()
 }
+
+#[test]
+fn test_node_eq_and_named_siblings() {
+    let mut parser = Parser::new();
+    parser.set_language(&get_language("rust")).unwrap();
+    let tree = parser.parse("fn a() {} fn b() {} fn c() {}", None).unwrap();
+    let root = tree.root_node();
+
+    // ts_node_eq: identical nodes compare equal, distinct nodes do not.
+    assert_eq!(root, tree.root_node());
+    let first = root.named_child(0).unwrap();
+    assert_ne!(root, first);
+    assert_eq!(first, root.named_child(0).unwrap());
+
+    // ts_node_next_named_sibling / ts_node_prev_named_sibling.
+    let second = first.next_named_sibling().unwrap();
+    assert_eq!(second, root.named_child(1).unwrap());
+    assert_eq!(second.prev_named_sibling().unwrap(), first);
+    assert!(first.prev_named_sibling().is_none());
+
+    let last = root.named_child(2).unwrap();
+    assert_eq!(second.next_named_sibling().unwrap(), last);
+    assert!(last.next_named_sibling().is_none());
+}

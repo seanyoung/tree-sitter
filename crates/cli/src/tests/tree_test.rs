@@ -834,3 +834,57 @@ fn test_reuse_invalidates_scanner_token_when_included_range_expands() {
         "(document (span (open_delim) (close_delim)))"
     );
 }
+
+#[test]
+fn test_tree_cursor_clone_and_descendant_index() {
+    let mut parser = Parser::new();
+    parser.set_language(&get_language("rust")).unwrap();
+    let tree = parser.parse("fn a() { b(); }", None).unwrap();
+
+    let mut cursor = tree.walk();
+    assert_eq!(cursor.descendant_index(), 0); // ts_tree_cursor_current_descendant_index
+    cursor.goto_first_child();
+    cursor.goto_first_child();
+    let idx = cursor.descendant_index();
+    assert!(idx > 0);
+
+    // ts_tree_cursor_copy: a clone preserves position and node identity.
+    let clone = cursor.clone();
+    assert_eq!(clone.descendant_index(), idx);
+    assert_eq!(clone.node(), cursor.node());
+
+    // goto_descendant round-trips against the reported index.
+    let mut other = tree.walk();
+    other.goto_descendant(idx);
+    assert_eq!(other.node(), cursor.node());
+    assert_eq!(other.descendant_index(), idx);
+}
+
+#[test]
+fn test_tree_cursor_goto_last_child_and_previous_sibling() {
+    let mut parser = Parser::new();
+    parser.set_language(&get_language("rust")).unwrap();
+    let tree = parser.parse("fn f() { a(); b(); c(); }", None).unwrap();
+
+    // Descend to a leaf using only ts_tree_cursor_goto_last_child.
+    let mut cursor = tree.walk();
+    let mut depth = 0;
+    while cursor.goto_last_child() {
+        depth += 1;
+    }
+    assert!(depth > 0);
+    assert!(!cursor.goto_first_child(), "stopped at a leaf");
+
+    // Walk a multi-child node backwards via goto_previous_sibling.
+    let mut cursor = tree.walk();
+    assert!(cursor.goto_first_child()); // function_item
+    assert!(cursor.goto_last_child()); // body block
+    assert!(cursor.goto_last_child()); // closing "}" of the block
+    let mut count = 1;
+    while cursor.goto_previous_sibling() {
+        count += 1;
+    }
+    assert!(count >= 2);
+    // Now positioned at the first child, so there is no previous sibling.
+    assert!(!cursor.goto_previous_sibling());
+}

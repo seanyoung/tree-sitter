@@ -6598,3 +6598,15 @@ fn test_last_child_anchor_looks_past_hidden_node() {
         assert_query_matches(&language, &query, source, &[(0, vec![("last", "int y;")])]);
     });
 }
+
+#[test]
+fn test_query_cursor_match_limit_getter() {
+    // ts_query_cursor_match_limit: defaults to "unlimited", reflects set_match_limit.
+    let mut cursor = QueryCursor::new();
+    assert_eq!(cursor.match_limit(), u32::MAX);
+    assert!(!cursor.did_exceed_match_limit());
+
+    cursor.set_match_limit(42);
+    assert_eq!(cursor.match_limit(), 42);
+    assert!(!cursor.did_exceed_match_limit());
+}

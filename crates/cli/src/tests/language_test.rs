@@ -227,3 +227,40 @@ fn test_supertypes() {
         }
     }
 }
+
+#[test]
+fn test_language_name_metadata_and_fields() {
+    let language = get_language("rust");
+    assert!(language.abi_version() > 0);
+
+    // ts_language_name / ts_language_metadata: exercise both regardless of ABI.
+    let _ = language.name();
+    let _ = language.metadata();
+
+    // ts_language_field_name_for_id: field ids are 1..=field_count and round-trip
+    // back to the same id via field_id_for_name.
+    let count = language.field_count();
+    assert!(count > 0);
+    for id in 1..=count as u16 {
+        let name = language.field_name_for_id(id).unwrap();
+        assert_eq!(
+            language
+                .field_id_for_name(name)
+                .map(std::num::NonZeroU16::get),
+            Some(id)
+        );
+    }
+    // The null / out-of-range branches.
+    assert!(language.field_name_for_id(0).is_none());
+    assert!(language.field_name_for_id(count as u16 + 1).is_none());
+}
+
+#[test]
+fn test_subtypes_for_invalid_supertype() {
+    let language = get_language("rust");
+    // A symbol that is not a supertype, and an out-of-range symbol, both yield
+    // empty subtype slices (the early-return branches in ts_language_subtypes).
+    let no_subtypes: &[u16] = &[];
+    assert_eq!(language.subtypes_for_supertype(0), no_subtypes);
+    assert_eq!(language.subtypes_for_supertype(u16::MAX), no_subtypes);
+}
